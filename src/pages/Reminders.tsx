@@ -1,4 +1,5 @@
-import { useState } from "react";
+// src/pages/Reminders.tsx
+import { useMemo, useState } from "react";
 import RemindersFilters from "../components/Reminders/RemindersFilters";
 import RemindersList from "../components/Reminders/RemindersList";
 import type { Reminder } from "../components/Reminders/RemindersList";
@@ -14,6 +15,22 @@ const initialReminders: Reminder[] = [
 
 export default function Reminders() {
   const [reminders, setReminders] = useState<Reminder[]>(initialReminders);
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+
+  const filteredReminders = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return reminders.filter((reminder) => {
+      const matchesSearch =
+        !query ||
+        reminder.title.toLowerCase().includes(query) ||
+        reminder.subtitle.toLowerCase().includes(query);
+      const matchesType = !typeFilter || reminder.type === typeFilter;
+      const matchesStatus = !statusFilter || reminder.status === statusFilter;
+      return matchesSearch && matchesType && matchesStatus;
+    });
+  }, [reminders, search, typeFilter, statusFilter]);
 
   const handleResolve = (id: string) => {
     setReminders((prev) => prev.map((r) => (r.id === id ? { ...r, status: "Resolved" } : r)));
@@ -35,9 +52,16 @@ export default function Reminders() {
       </p>
 
       <div className="mt-6">
-        <RemindersFilters />
+        <RemindersFilters
+          search={search}
+          onSearchChange={setSearch}
+          type={typeFilter}
+          onTypeChange={setTypeFilter}
+          status={statusFilter}
+          onStatusChange={setStatusFilter}
+        />
         <RemindersList
-          reminders={reminders}
+          reminders={filteredReminders}
           onResolve={handleResolve}
           onSnooze={handleSnooze}
           onDismiss={handleDismiss}

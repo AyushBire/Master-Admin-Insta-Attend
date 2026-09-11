@@ -1,4 +1,5 @@
-import { useState } from "react";
+// src/pages/Organizations.tsx
+import { useMemo, useState } from "react";
 import OrganizationFilters from "../components/Organizations/OrganizationFilters";
 import OrganizationsTable from "../components/Organizations/OrganizationsTable";
 import type { Organization } from "../components/Organizations/OrganizationsTable";
@@ -21,6 +22,19 @@ export default function Organizations() {
   const [editTarget, setEditTarget] = useState<Organization | null>(null);
   const [suspendTarget, setSuspendTarget] = useState<Organization | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Organization | null>(null);
+
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [planFilter, setPlanFilter] = useState("");
+
+  const filteredOrganizations = useMemo(() => {
+    return organizations.filter((org) => {
+      const matchesSearch = org.name.toLowerCase().includes(search.trim().toLowerCase());
+      const matchesStatus = !statusFilter || org.status === statusFilter;
+      const matchesPlan = !planFilter || org.plan === planFilter;
+      return matchesSearch && matchesStatus && matchesPlan;
+    });
+  }, [organizations, search, statusFilter, planFilter]);
 
   const handleAddOrganization = (data: NewOrgFormData) => {
     const newOrg: Organization = {
@@ -64,9 +78,17 @@ export default function Organizations() {
       </p>
 
       <div className="mt-6">
-        <OrganizationFilters onAddClick={() => setAddModalOpen(true)} />
+        <OrganizationFilters
+          onAddClick={() => setAddModalOpen(true)}
+          search={search}
+          onSearchChange={setSearch}
+          status={statusFilter}
+          onStatusChange={setStatusFilter}
+          plan={planFilter}
+          onPlanChange={setPlanFilter}
+        />
         <OrganizationsTable
-          organizations={organizations}
+          organizations={filteredOrganizations}
           onEdit={(org) => setEditTarget(org)}
           onToggleSuspend={(org) => setSuspendTarget(org)}
           onDelete={(org) => setDeleteTarget(org)}

@@ -1,10 +1,25 @@
+// src/components/Licenses/LicenseFilters.tsx
 import { Search, Plus } from "lucide-react";
 
 interface LicenseFiltersProps {
   onAddClick: () => void;
+  search: string;
+  onSearchChange: (value: string) => void;
+  status: string;
+  onStatusChange: (value: string) => void;
+  plan: string;
+  onPlanChange: (value: string) => void;
 }
 
-export default function LicenseFilters({ onAddClick }: LicenseFiltersProps) {
+export default function LicenseFilters({
+  onAddClick,
+  search,
+  onSearchChange,
+  status,
+  onStatusChange,
+  plan,
+  onPlanChange,
+}: LicenseFiltersProps) {
   return (
     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
       <div className="flex flex-wrap items-center gap-3">
@@ -12,19 +27,29 @@ export default function LicenseFilters({ onAddClick }: LicenseFiltersProps) {
           <Search size={16} strokeWidth={1.8} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
           <input
             type="text"
+            value={search}
+            onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search by organization name..."
             className="h-10 w-full rounded-lg border border-border bg-white pl-9 pr-4 text-base text-text-primary outline-none placeholder:text-text-muted focus:border-primary"
           />
         </div>
 
-        <select className="h-10 rounded-lg border border-border bg-white px-3 text-base text-text-muted outline-none focus:border-primary">
+        <select
+          value={status}
+          onChange={(e) => onStatusChange(e.target.value)}
+          className="h-10 rounded-lg border border-border bg-white px-3 text-base text-text-muted outline-none focus:border-primary"
+        >
           <option value="">All Statuses</option>
           <option value="Active">Active</option>
           <option value="Trial">Trial</option>
           <option value="Expired">Expired</option>
         </select>
 
-        <select className="h-10 rounded-lg border border-border bg-white px-3 text-base text-text-muted outline-none focus:border-primary">
+        <select
+          value={plan}
+          onChange={(e) => onPlanChange(e.target.value)}
+          className="h-10 rounded-lg border border-border bg-white px-3 text-base text-text-muted outline-none focus:border-primary"
+        >
           <option value="">All Plans</option>
           <option value="Starter">Starter</option>
           <option value="Professional">Professional</option>

@@ -1,4 +1,5 @@
-import { useState } from "react";
+// src/pages/Licenses.tsx
+import { useMemo, useState } from "react";
 import LicenseFilters from "../components/Licenses/LicenseFilters";
 import LicensesTable from "../components/Licenses/LicensesTable";
 import type { License } from "../components/Licenses/LicensesTable";
@@ -28,6 +29,19 @@ export default function Licenses() {
   const [editTarget, setEditTarget] = useState<License | null>(null);
   const [renewTarget, setRenewTarget] = useState<License | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<License | null>(null);
+
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [planFilter, setPlanFilter] = useState("");
+
+  const filteredLicenses = useMemo(() => {
+    return licenses.filter((license) => {
+      const matchesSearch = license.organization.toLowerCase().includes(search.trim().toLowerCase());
+      const matchesStatus = !statusFilter || license.status === statusFilter;
+      const matchesPlan = !planFilter || license.plan === planFilter;
+      return matchesSearch && matchesStatus && matchesPlan;
+    });
+  }, [licenses, search, statusFilter, planFilter]);
 
   const handleAddLicense = (data: NewLicenseFormData) => {
     const newLicense: License = {
@@ -74,9 +88,17 @@ export default function Licenses() {
       </p>
 
       <div className="mt-6">
-        <LicenseFilters onAddClick={() => setAddModalOpen(true)} />
+        <LicenseFilters
+          onAddClick={() => setAddModalOpen(true)}
+          search={search}
+          onSearchChange={setSearch}
+          status={statusFilter}
+          onStatusChange={setStatusFilter}
+          plan={planFilter}
+          onPlanChange={setPlanFilter}
+        />
         <LicensesTable
-          licenses={licenses}
+          licenses={filteredLicenses}
           onEdit={(license) => setEditTarget(license)}
           onRenew={(license) => setRenewTarget(license)}
           onRevoke={(license) => setRevokeTarget(license)}

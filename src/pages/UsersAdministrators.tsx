@@ -1,4 +1,5 @@
-import { useState } from "react";
+// src/pages/UsersAdministrators.tsx
+import { useMemo, useState } from "react";
 import AdminUsersFilters from "../components/Users/AdminUsersFilters";
 import AdminUsersTable from "../components/Users/AdminUsersTable";
 import type { AdminUser } from "../components/Users/AdminUsersTable";
@@ -23,6 +24,23 @@ export default function UsersAdministrators() {
   const [suspendTarget, setSuspendTarget] = useState<AdminUser | null>(null);
   const [removeTarget, setRemoveTarget] = useState<AdminUser | null>(null);
   const [resetTarget, setResetTarget] = useState<AdminUser | null>(null);
+
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+
+  const filteredAdmins = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return admins.filter((user) => {
+      const matchesSearch =
+        !query ||
+        user.name.toLowerCase().includes(query) ||
+        user.email.toLowerCase().includes(query);
+      const matchesRole = !roleFilter || user.role === roleFilter;
+      const matchesStatus = !statusFilter || user.status === statusFilter;
+      return matchesSearch && matchesRole && matchesStatus;
+    });
+  }, [admins, search, roleFilter, statusFilter]);
 
   const handleAddAdmin = (data: NewAdminFormData) => {
     const newAdmin: AdminUser = {
@@ -59,7 +77,6 @@ export default function UsersAdministrators() {
   };
 
   const handleConfirmReset = () => {
-    // No backend yet — just acknowledge the action for now
     setResetTarget(null);
   };
 
@@ -71,9 +88,17 @@ export default function UsersAdministrators() {
       </p>
 
       <div className="mt-6">
-        <AdminUsersFilters onAddClick={() => setAddModalOpen(true)} />
+        <AdminUsersFilters
+          onAddClick={() => setAddModalOpen(true)}
+          search={search}
+          onSearchChange={setSearch}
+          role={roleFilter}
+          onRoleChange={setRoleFilter}
+          status={statusFilter}
+          onStatusChange={setStatusFilter}
+        />
         <AdminUsersTable
-          users={admins}
+          users={filteredAdmins}
           onEditRole={(user) => setEditingUser(user)}
           onResetPassword={(user) => setResetTarget(user)}
           onToggleSuspend={(user) => setSuspendTarget(user)}
