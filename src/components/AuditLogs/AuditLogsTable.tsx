@@ -32,15 +32,15 @@ interface AuditLogsTableProps {
 
 export default function AuditLogsTable({ logs }: AuditLogsTableProps) {
   return (
-    <div className="rounded-2xl border border-border bg-white shadow-sm">
+    <div className="surface-card-static overflow-hidden">
       <table className="w-full text-left">
         <thead>
-          <tr className="border-b border-border bg-primary-light/40">
-            <th className="rounded-tl-2xl px-5 py-3 text-xs font-semibold uppercase tracking-wide text-text-muted">Action</th>
-            <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-text-muted">Actor</th>
-            <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-text-muted">Target</th>
-            <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-text-muted">Timestamp</th>
-            <th className="rounded-tr-2xl px-5 py-3 text-xs font-semibold uppercase tracking-wide text-text-muted">IP Address</th>
+          <tr className="table-head-row">
+            <th className="table-head-cell rounded-tl-xl">Action</th>
+            <th className="table-head-cell">Actor</th>
+            <th className="table-head-cell">Target</th>
+            <th className="table-head-cell">Timestamp</th>
+            <th className="table-head-cell rounded-tr-xl">IP Address</th>
           </tr>
         </thead>
 
@@ -56,8 +56,8 @@ export default function AuditLogsTable({ logs }: AuditLogsTableProps) {
               const config = categoryConfig[log.category];
               const Icon = config.icon;
               return (
-                <tr key={log.id} className="border-b border-border last:border-0 hover:bg-primary-light/30">
-                  <td className="px-5 py-4">
+                <tr key={log.id} className="table-row">
+                  <td className="table-cell">
                     <div className="flex items-center gap-3">
                       <div
                         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
@@ -71,9 +71,9 @@ export default function AuditLogsTable({ logs }: AuditLogsTableProps) {
                       </div>
                     </div>
                   </td>
-                  <td className="px-5 py-4 text-base text-text-muted">{log.actor}</td>
-                  <td className="px-5 py-4 text-base text-text-muted">{log.target}</td>
-                  <td className="px-5 py-4 text-base text-text-muted">{log.timestamp}</td>
+                  <td className="table-cell">{log.actor}</td>
+                  <td className="table-cell">{log.target}</td>
+                  <td className="table-cell">{log.timestamp}</td>
                   <td className="px-5 py-4 text-sm text-text-muted">{log.ipAddress}</td>
                 </tr>
               );

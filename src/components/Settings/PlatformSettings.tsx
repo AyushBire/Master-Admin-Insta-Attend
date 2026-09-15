@@ -44,16 +44,6 @@ export default function PlatformSettings() {
           Save Changes
         </button>
       </div>
-
-      <div className="rounded-2xl border border-error/30 bg-error-bg/40 p-6">
-        <h2 className="mb-1 text-lg font-semibold text-error">Danger Zone</h2>
-        <p className="mb-4 text-sm text-text-muted">
-          Irreversible platform-level actions. Proceed with caution.
-        </p>
-        <button className="rounded-lg border border-error px-4 py-2.5 text-base font-medium text-error hover:bg-error hover:text-white">
-          Reset Platform Data
-        </button>
-      </div>
     </div>
   );
 }

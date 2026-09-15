@@ -5,20 +5,30 @@ interface AddOrganizationModalProps {
   open: boolean; onClose: () => void; onSubmit: (data: NewOrgFormData) => void;
 }
 export interface NewOrgFormData {
-  name: string; email: string;
-  plan: "Starter" | "Professional" | "Enterprise";
+  name: string;
+  adminName: string;
+  email: string;
+  plan: "Monthly" | "Quarterly" | "Yearly";
   status: "Active" | "Trial";
 }
 
 export default function AddOrganizationModal({ open, onClose, onSubmit }: AddOrganizationModalProps) {
-  const [formData, setFormData] = useState<NewOrgFormData>({ name: "", email: "", plan: "Starter", status: "Trial" });
+  const [formData, setFormData] = useState<NewOrgFormData>({
+    name: "", adminName: "", email: "", plan: "Monthly", status: "Trial",
+  });
   if (!open) return null;
 
   const handleChange = (field: keyof NewOrgFormData, value: string) => setFormData((prev) => ({ ...prev, [field]: value }));
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formData);
-    setFormData({ name: "", email: "", plan: "Starter", status: "Trial" });
+
+    // TODO (future): once the organization is created, trigger a mail to
+    // formData.email inviting the org admin to set up their login
+    // credentials for their organization's admin page.
+
+    setFormData({ name: "", adminName: "", email: "", plan: "Monthly", status: "Trial" });
     onClose();
   };
 
@@ -33,7 +43,25 @@ export default function AddOrganizationModal({ open, onClose, onSubmit }: AddOrg
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="mb-1.5 block text-base font-medium text-text-primary">Organization Name</label>
-            <input type="text" required value={formData.name} onChange={(e) => handleChange("name", e.target.value)} placeholder="e.g. Acme Corp" className="h-10 w-full rounded-lg border border-border bg-white px-3 text-base text-text-primary outline-none placeholder:text-text-muted focus:border-primary" />
+            <input
+              type="text"
+              required
+              value={formData.name}
+              onChange={(e) => handleChange("name", e.target.value)}
+              placeholder="e.g. Acme Corp"
+              className="h-10 w-full rounded-lg border border-border bg-white px-3 text-base text-text-primary outline-none placeholder:text-text-muted focus:border-primary"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-base font-medium text-text-primary">Admin Name</label>
+            <input
+              type="text"
+              required
+              value={formData.adminName}
+              onChange={(e) => handleChange("adminName", e.target.value)}
+              placeholder="e.g. Sarah Chen"
+              className="h-10 w-full rounded-lg border border-border bg-white px-3 text-base text-text-primary outline-none placeholder:text-text-muted focus:border-primary"
+            />
           </div>
           <div>
             <label className="mb-1.5 block text-base font-medium text-text-primary">Admin Email</label>
@@ -43,9 +71,9 @@ export default function AddOrganizationModal({ open, onClose, onSubmit }: AddOrg
             <div>
               <label className="mb-1.5 block text-base font-medium text-text-primary">Plan</label>
               <select value={formData.plan} onChange={(e) => handleChange("plan", e.target.value)} className="h-10 w-full rounded-lg border border-border bg-white px-3 text-base text-text-primary outline-none focus:border-primary">
-                <option value="Starter">Starter</option>
-                <option value="Professional">Professional</option>
-                <option value="Enterprise">Enterprise</option>
+                <option value="Monthly">Monthly</option>
+                <option value="Quarterly">Quarterly</option>
+                <option value="Yearly">Yearly</option>
               </select>
             </div>
             <div>

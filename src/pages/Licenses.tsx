@@ -1,132 +1,78 @@
 // src/pages/Licenses.tsx
 import { useMemo, useState } from "react";
-import LicenseFilters from "../components/Licenses/LicenseFilters";
-import LicensesTable from "../components/Licenses/LicensesTable";
-import type { License } from "../components/Licenses/LicensesTable";
-import AddLicenseModal from "../components/Licenses/AddLicenseModal";
-import type { NewLicenseFormData } from "../components/Licenses/AddLicenseModal";
-import EditLicenseModal from "../components/Licenses/EditLicenseModal";
-import ConfirmDialog from "../components/Users/ConfirmDialog";
+import { useAppData } from "../context/AppDataContext";
+import type { LicenseRequestStatus } from "../context/AppDataContext";
+import LicenseRequestFilters from "../components/Licenses/LicenseRequestFilters";
+import LicenseRequestsList from "../components/Licenses/LicenseRequestsList";
 
-const initialLicenses: License[] = [
-  { id: "1", organization: "Acme Corp", plan: "Enterprise", seats: 100, status: "Active", issuedDate: "Sep 12, 2024", expiryDate: "Sep 12, 2026" },
-  { id: "2", organization: "Nimbus Retail", plan: "Professional", seats: 25, status: "Trial", issuedDate: "Aug 15, 2026", expiryDate: "Aug 29, 2026" },
-  { id: "3", organization: "Bluepeak Logistics", plan: "Starter", seats: 10, status: "Expired", issuedDate: "Jul 1, 2025", expiryDate: "Jul 1, 2026" },
-  { id: "4", organization: "Orbit Solutions", plan: "Professional", seats: 30, status: "Active", issuedDate: "Jan 10, 2025", expiryDate: "Jan 10, 2027" },
-  { id: "5", organization: "Vertex Manufacturing", plan: "Enterprise", seats: 200, status: "Active", issuedDate: "Nov 3, 2024", expiryDate: "Nov 3, 2026" },
+const tabs: { id: LicenseRequestStatus; label: string }[] = [
+  { id: "Pending", label: "Pending" },
+  { id: "Approved", label: "Approved" },
+  { id: "Rejected", label: "Rejected" },
 ];
 
-function addOneYear(dateStr: string): string {
-  const base = dateStr === "—" ? new Date() : new Date(dateStr);
-  const next = new Date(base);
-  next.setFullYear(next.getFullYear() + 1);
-  return next.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
-
 export default function Licenses() {
-  const [licenses, setLicenses] = useState<License[]>(initialLicenses);
-  const [addModalOpen, setAddModalOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<License | null>(null);
-  const [renewTarget, setRenewTarget] = useState<License | null>(null);
-  const [revokeTarget, setRevokeTarget] = useState<License | null>(null);
-
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const { organizations, licenseRequests, approveLicenseRequest, rejectLicenseRequest } = useAppData();
+  const [activeTab, setActiveTab] = useState<LicenseRequestStatus>("Pending");
+  const [organizationFilter, setOrganizationFilter] = useState("");
   const [planFilter, setPlanFilter] = useState("");
 
-  const filteredLicenses = useMemo(() => {
-    return licenses.filter((license) => {
-      const matchesSearch = license.organization.toLowerCase().includes(search.trim().toLowerCase());
-      const matchesStatus = !statusFilter || license.status === statusFilter;
-      const matchesPlan = !planFilter || license.plan === planFilter;
-      return matchesSearch && matchesStatus && matchesPlan;
+  const filteredRequests = useMemo(() => {
+    return licenseRequests.filter((req) => {
+      const matchesTab = req.status === activeTab;
+      const matchesOrg = !organizationFilter || req.organizationName === organizationFilter;
+      const matchesPlan = !planFilter || req.plan === planFilter;
+      return matchesTab && matchesOrg && matchesPlan;
     });
-  }, [licenses, search, statusFilter, planFilter]);
+  }, [licenseRequests, activeTab, organizationFilter, planFilter]);
 
-  const handleAddLicense = (data: NewLicenseFormData) => {
-    const newLicense: License = {
-      id: String(Date.now()),
-      organization: data.organization,
-      plan: data.plan,
-      seats: data.seats,
-      status: data.status,
-      issuedDate: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-      expiryDate: "—",
-    };
-    setLicenses((prev) => [newLicense, ...prev]);
-  };
-
-  const handleSaveEdit = (id: string, updates: Pick<License, "organization" | "plan" | "seats">) => {
-    setLicenses((prev) => prev.map((l) => (l.id === id ? { ...l, ...updates } : l)));
-  };
-
-  const handleConfirmRenew = () => {
-    if (!renewTarget) return;
-    setLicenses((prev) =>
-      prev.map((l) =>
-        l.id === renewTarget.id
-          ? { ...l, status: "Active", expiryDate: addOneYear(l.expiryDate) }
-          : l
-      )
-    );
-    setRenewTarget(null);
-  };
-
-  const handleConfirmRevoke = () => {
-    if (!revokeTarget) return;
-    setLicenses((prev) =>
-      prev.map((l) => (l.id === revokeTarget.id ? { ...l, status: "Expired" } : l))
-    );
-    setRevokeTarget(null);
-  };
+  const tabCounts = useMemo(() => {
+    return tabs.reduce<Record<LicenseRequestStatus, number>>((acc, tab) => {
+      acc[tab.id] = licenseRequests.filter((r) => r.status === tab.id).length;
+      return acc;
+    }, {} as Record<LicenseRequestStatus, number>);
+  }, [licenseRequests]);
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-text-primary">License</h1>
-      <p className="mt-1 text-sm text-text-muted">
-        Manage active licenses issued to client organizations.
-      </p>
+      <h1 className="page-title">License Requests</h1>
+      <p className="section-subtitle">Review and manage license requests submitted by client organizations.</p>
 
       <div className="mt-6">
-        <LicenseFilters
-          onAddClick={() => setAddModalOpen(true)}
-          search={search}
-          onSearchChange={setSearch}
-          status={statusFilter}
-          onStatusChange={setStatusFilter}
+        <LicenseRequestFilters
+          organizationNames={organizations.map((o) => o.name)}
+          organization={organizationFilter}
+          onOrganizationChange={setOrganizationFilter}
           plan={planFilter}
           onPlanChange={setPlanFilter}
         />
-        <LicensesTable
-          licenses={filteredLicenses}
-          onEdit={(license) => setEditTarget(license)}
-          onRenew={(license) => setRenewTarget(license)}
-          onRevoke={(license) => setRevokeTarget(license)}
+
+        <div className="mb-4 flex items-center gap-1 border-b border-border">
+          {tabs.map((tab) => {
+            const active = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`relative flex items-center gap-2 px-4 py-3 text-base transition-colors ${
+                  active ? "font-semibold text-primary-dark" : "font-medium text-text-muted hover:text-primary-dark"
+                }`}
+              >
+                {tab.label}
+                <span className="status-badge status-badge--success">{tabCounts[tab.id]}</span>
+                {active && <span className="absolute bottom-0 left-0 right-0 h-[2px] rounded-t-full bg-primary" />}
+              </button>
+            );
+          })}
+        </div>
+
+        <LicenseRequestsList
+          requests={filteredRequests}
+          status={activeTab}
+          onApprove={approveLicenseRequest}
+          onReject={rejectLicenseRequest}
         />
       </div>
-
-      <AddLicenseModal open={addModalOpen} onClose={() => setAddModalOpen(false)} onSubmit={handleAddLicense} />
-
-      <EditLicenseModal license={editTarget} onClose={() => setEditTarget(null)} onSave={handleSaveEdit} />
-
-      <ConfirmDialog
-        open={!!renewTarget}
-        title="Renew License"
-        message={`Renew the license for ${renewTarget?.organization} for another year? The new expiry date will be ${renewTarget ? addOneYear(renewTarget.expiryDate) : ""}.`}
-        confirmLabel="Renew"
-        onCancel={() => setRenewTarget(null)}
-        onConfirm={handleConfirmRenew}
-      />
-
-      <ConfirmDialog
-        open={!!revokeTarget}
-        title="Revoke License"
-        message={`This will immediately revoke access for ${revokeTarget?.organization}. Their license status will be set to Expired.`}
-        confirmLabel="Revoke"
-        danger
-        onCancel={() => setRevokeTarget(null)}
-        onConfirm={handleConfirmRevoke}
-      />
     </div>
   );
 }

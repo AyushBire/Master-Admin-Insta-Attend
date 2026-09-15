@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -7,11 +8,7 @@ import {
   Bell,
   Users,
   ClipboardList,
-  Settings,
-  CircleHelp,
-  LogOut,
-  Building,
-  ChevronLeft,
+  ChevronsLeft,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -27,47 +24,57 @@ const navigationItems = [
   { label: "Reminders", icon: Bell, path: "/reminders" },
   { label: "Users & Administrators", icon: Users, path: "/users" },
   { label: "Audit Logs", icon: ClipboardList, path: "/audit-logs" },
-  { label: "Settings", icon: Settings, path: "/settings" },
 ];
+
+const currentMasterAdmin = {
+  name: "Master Admin",
+  email: "admin@instaattend.com",
+};
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const location = useLocation();
+  const itemRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
+  const [indicatorTop, setIndicatorTop] = useState<number | null>(null);
+
+  useEffect(() => {
+    const active = navigationItems.find((item) => item.path === location.pathname);
+    const el = active ? itemRefs.current[active.path] : null;
+    if (el) setIndicatorTop(el.offsetTop + el.offsetHeight / 2 - 12);
+    else setIndicatorTop(null);
+  }, [location.pathname, collapsed]);
+
+  const initial = currentMasterAdmin.name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
 
   return (
     <aside
-      className={`relative flex h-screen flex-col border-r border-border bg-white transition-[width] duration-300 ease-in-out ${collapsed ? "w-[76px]" : "w-[250px]"}`}
+      className={`relative flex h-screen shrink-0 flex-col border-r border-border bg-white shadow-[var(--shadow-soft)] transition-[width] duration-300 ease-in-out ${collapsed ? "w-20" : "w-64"}`}
     >
-      <div className="flex items-center justify-between px-4 pb-6 pt-6">
-        <div className="flex flex-1 flex-col items-center">
-          <div className="mb-3 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary text-white">
-            <Building size={24} strokeWidth={2} />
-          </div>
-          {!collapsed && (
-            <>
-              <h1 className="whitespace-nowrap text-lg font-semibold text-text-primary">
-                Master Admin
-              </h1>
-              <p className="mt-1 whitespace-nowrap text-2xs font-medium tracking-[0.12em] text-text-muted">
-                CONTROL CENTER
-              </p>
-            </>
-          )}
-        </div>
+      <div className={`flex items-center gap-2 px-6 pb-6 pt-6 ${collapsed ? "justify-center px-0" : "justify-between"}`}>
+        {!collapsed && (
+          <h1 className="whitespace-nowrap text-2xl font-bold text-gradient-primary">Insta Attend</h1>
+        )}
+        <button
+          onClick={onToggle}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-primary/10 hover:text-primary"
+        >
+          <ChevronsLeft
+            size={24}
+            className={`transition-transform duration-300 ${collapsed ? "rotate-180" : ""}`}
+          />
+        </button>
       </div>
 
-      <button
-        onClick={onToggle}
-        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        className="absolute -right-3 top-8 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-white text-text-muted shadow-sm hover:text-primary"
-      >
-        <ChevronLeft
-          size={14}
-          className={`transition-transform duration-300 ${collapsed ? "rotate-180" : ""}`}
+      <nav className="relative min-h-0 flex-1 overflow-y-auto px-3 pt-2">
+        <span
+          className="absolute left-3 w-1 rounded-r-full gradient-primary transition-[top,opacity] duration-350 pointer-events-none"
+          style={{ top: indicatorTop ?? 0, height: 24, opacity: indicatorTop === null ? 0 : 1 }}
         />
-      </button>
-
-      <nav className="min-h-0 flex-1 overflow-y-auto px-3">
-        <div className="space-y-1">
+        <div className="space-y-2">
           {navigationItems.map((item) => {
             const Icon = item.icon;
             const active = location.pathname === item.path;
@@ -75,37 +82,37 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               <Link
                 key={item.label}
                 to={item.path}
+                ref={(el) => { itemRefs.current[item.path] = el; }}
                 title={collapsed ? item.label : undefined}
-                className={`relative flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-base font-medium transition-colors ${collapsed ? "justify-center px-0" : ""} ${active ? "bg-primary-light text-primary-dark" : "text-text-muted hover:bg-primary-light hover:text-primary-dark"}`}
+                className={`group relative flex items-center gap-3 overflow-hidden rounded-lg px-4 py-3 text-base transition-all duration-300 ${collapsed ? "justify-center px-0" : ""} ${
+                  active
+                    ? "bg-primary/10 font-semibold text-primary shadow-[var(--shadow-glow)]"
+                    : "font-medium text-text-muted hover:translate-x-1 hover:bg-primary/10 hover:text-primary"
+                }`}
               >
-                {active && (
-                  <span className="absolute left-0 top-1/2 h-7 w-[3px] -translate-y-1/2 rounded-r-full bg-primary" />
-                )}
-                <Icon size={18} strokeWidth={1.8} className="shrink-0" />
-                {!collapsed && (
-                  <span className="whitespace-nowrap">{item.label}</span>
-                )}
+                <Icon
+                  size={20}
+                  className={`shrink-0 transition-transform duration-300 group-hover:scale-110 ${active ? "scale-110" : ""}`}
+                />
+                {!collapsed && <span className="whitespace-nowrap">{item.label}</span>}
               </Link>
             );
           })}
         </div>
       </nav>
 
-      <div className="shrink-0 border-t border-border px-3 py-4">
-        <button
-          title={collapsed ? "Support" : undefined}
-          className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-base font-medium text-text-muted hover:bg-primary-light hover:text-primary-dark ${collapsed ? "justify-center px-0" : ""}`}
-        >
-          <CircleHelp size={18} strokeWidth={1.8} className="shrink-0" />
-          {!collapsed && <span>Support</span>}
-        </button>
-        <button
-          title={collapsed ? "Logout" : undefined}
-          className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-base font-medium text-error ${collapsed ? "justify-center px-0" : ""}`}
-        >
-          <LogOut size={18} strokeWidth={1.8} className="shrink-0" />
-          {!collapsed && <span>Logout</span>}
-        </button>
+      <div className={`shrink-0 border-t border-border p-4 ${collapsed ? "flex justify-center" : ""}`}>
+        <div className="flex items-center">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-sm font-semibold text-primary">
+            {initial}
+          </div>
+          {!collapsed && (
+            <div className="ml-3 min-w-0">
+              <p className="truncate text-sm font-semibold text-text-primary">{currentMasterAdmin.name}</p>
+              <p className="truncate text-xs font-medium text-text-muted">{currentMasterAdmin.email}</p>
+            </div>
+          )}
+        </div>
       </div>
     </aside>
   );

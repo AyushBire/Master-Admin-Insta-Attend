@@ -50,9 +50,9 @@ export default function OrganizationFilters({
           className="h-10 rounded-lg border border-border bg-white px-3 text-base text-text-muted outline-none focus:border-primary"
         >
           <option value="">All Plans</option>
-          <option value="Starter">Starter</option>
-          <option value="Professional">Professional</option>
-          <option value="Enterprise">Enterprise</option>
+          <option value="Monthly">Monthly</option>
+          <option value="Quarterly">Quarterly</option>
+          <option value="Yearly">Yearly</option>
         </select>
         <button className="flex h-10 items-center gap-2 rounded-lg border border-border bg-white px-3 text-base text-text-muted hover:bg-primary-light">
           <Filter size={15} /> More Filters

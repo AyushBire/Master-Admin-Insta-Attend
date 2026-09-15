@@ -9,10 +9,8 @@ import ReminderPipeline from "../components/Dashboard/ReminderPipeline";
 export default function Dashboard() {
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-text-primary">Dashboard</h1>
-      <p className="mt-1 text-sm text-text-muted">
-        Welcome to the Master Admin Control Center.
-      </p>
+      <h1 className="page-title">Dashboard</h1>
+      <p className="section-subtitle">Welcome to the Master Admin Control Center.</p>
 
       <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Total Organizations" value="248" change="+12.5%" icon={Building2} />

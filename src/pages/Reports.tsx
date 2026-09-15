@@ -6,10 +6,8 @@ import TopOrganizations from "../components/Reports/TopOrganizations";
 export default function Reports() {
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-text-primary">Reports</h1>
-      <p className="mt-1 text-sm text-text-muted">
-        Platform-wide analytics and performance insights.
-      </p>
+      <h1 className="page-title">Reports</h1>
+      <p className="section-subtitle">Platform-wide analytics and performance insights.</p>
 
       <div className="mt-6">
         <ReportsFilters />

@@ -23,17 +23,15 @@ export default function StatCard({
   positive = true,
 }: StatCardProps) {
   return (
-    <div className="rounded-xl border border-border bg-white p-5">
+    <div className="surface-card group p-5">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm font-medium text-text-muted">{title}</p>
-          <h2 className="mt-2 text-3xl font-semibold leading-none text-text-primary">
-            {value}
-          </h2>
+          <h2 className="mt-2 text-3xl font-semibold leading-none text-text-primary">{value}</h2>
         </div>
 
         <div
-          className="flex h-10 w-10 items-center justify-center rounded-lg"
+          className="flex h-10 w-10 items-center justify-center rounded-full transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6"
           style={{ backgroundColor: iconBackground, color: iconColor }}
         >
           <Icon size={20} strokeWidth={1.8} />
@@ -42,9 +40,7 @@ export default function StatCard({
 
       {change && (
         <div className="mt-4 flex items-center gap-1.5 text-xs">
-          <span className={`font-semibold ${positive ? "text-success" : "text-error"}`}>
-            {change}
-          </span>
+          <span className={`font-semibold ${positive ? "text-success" : "text-error"}`}>{change}</span>
           <span className="text-text-muted">{changeLabel}</span>
         </div>
       )}
