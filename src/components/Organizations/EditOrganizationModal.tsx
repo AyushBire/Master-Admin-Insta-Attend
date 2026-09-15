@@ -14,7 +14,7 @@ export default function EditOrganizationModal({
   onSave,
 }: EditOrganizationModalProps) {
   const [name, setName] = useState(organization?.name ?? "");
-  const [plan, setPlan] = useState<Organization["plan"]>(organization?.plan ?? "Starter");
+  const [plan, setPlan] = useState<Organization["plan"]>(organization?.plan ?? "Monthly");
 
   if (!organization) return null;
 

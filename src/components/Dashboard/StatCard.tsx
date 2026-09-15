@@ -1,5 +1,13 @@
+import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import type { LucideIcon } from "lucide-react";
 import { colors } from "../../styles/theme";
+
+export interface IndustryBreakdown {
+  label: string;
+  count: number;
+  color?: string;
+}
 
 interface StatCardProps {
   title: string;
@@ -10,6 +18,7 @@ interface StatCardProps {
   iconColor?: string;
   iconBackground?: string;
   positive?: boolean;
+  industryBreakdown?: IndustryBreakdown[];
 }
 
 export default function StatCard({
@@ -21,9 +30,34 @@ export default function StatCard({
   iconColor = colors.primary,
   iconBackground = colors.primaryLight,
   positive = true,
+  industryBreakdown,
 }: StatCardProps) {
+  const [hovered, setHovered] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
+
+  useEffect(() => {
+    if (hovered && cardRef.current) {
+      const rect = cardRef.current.getBoundingClientRect();
+      setTooltipStyle({
+        position: "fixed",
+        top: rect.bottom + 8,
+        left: rect.left,
+        width: rect.width,
+        zIndex: 9999,
+      });
+    }
+  }, [hovered]);
+
+  const total = industryBreakdown?.reduce((s, i) => s + i.count, 0) ?? 0;
+
   return (
-    <div className="surface-card group p-5">
+    <div
+      ref={cardRef}
+      className="surface-card group relative p-5"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm font-medium text-text-muted">{title}</p>
@@ -44,6 +78,46 @@ export default function StatCard({
           <span className="text-text-muted">{changeLabel}</span>
         </div>
       )}
+
+      {/* Portal tooltip — renders directly on body, always above everything */}
+      {industryBreakdown && industryBreakdown.length > 0 &&
+        hovered &&
+        createPortal(
+          <div
+            style={tooltipStyle}
+            className="rounded-xl border border-border bg-white p-4 shadow-[0_10px_40px_-8px_rgba(16,100,70,0.22)]"
+          >
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-text-muted">
+              Organization Breakdown
+            </p>
+            <div className="space-y-2.5">
+              {industryBreakdown.map((item) => {
+                const pct = total > 0 ? Math.round((item.count / total) * 100) : 0;
+                return (
+                  <div key={item.label}>
+                    <div className="mb-1 flex items-center justify-between text-xs">
+                      <span className="font-medium text-text-primary">{item.label}</span>
+                      <span className="text-text-muted">
+                        {item.count.toLocaleString()}
+                        <span className="ml-1 text-text-muted/70">· {pct}%</span>
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-primary-light">
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{
+                          width: `${pct}%`,
+                          backgroundColor: item.color ?? colors.primary,
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
