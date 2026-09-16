@@ -1,18 +1,22 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
-import type { Organization } from "../components/Organizations/OrganizationsTable";
 import type { NewOrgFormData } from "../components/Organizations/AddOrganizationModal";
+import { addBillingCycle, formatDisplayDate, type BillingCycle } from "../lib/billingCycle";
 
-export type LicenseRequestStatus = "Pending" | "Approved" | "Rejected";
+export type { BillingCycle };
+export type LicenseTier = "Evolution";
 
-export interface LicenseRequest {
+// Maps 1:1 to license_plan / license_started_at / license_expires_at that a
+// real backend would return. An organization has NO License record until
+// one is explicitly issued via "Issue New License".
+export interface License {
   id: string;
   organizationId: string;
   organizationName: string;
-  plan: "Monthly" | "Quarterly" | "Yearly";
-  requestDate: string;
-  status: LicenseRequestStatus;
-  decisionDate?: string;
-  expiryDate?: string;
+  tier: LicenseTier;
+  billingCycle: BillingCycle;
+  startedAt: string;  // ISO
+  expiresAt: string;  // ISO
+  cancelled: boolean;
 }
 
 export type OrgAdminStatus = "Active" | "Invited" | "Suspended";
@@ -27,15 +31,35 @@ export interface OrgAdmin {
   lastActive: string;
 }
 
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  logoUrl: string;
+  orgAddress: string;
+  adminName: string;
+  adminPhone: string;
+  email: string;
+  plan: BillingCycle;
+  status: "Active" | "Trial" | "Suspended" | "Pending Renewal";
+  timezone: string;
+  maxUsers: number;
+  workingDays: string[];
+  workingHours: number;
+  renewalDate: string;
+}
+
 interface AppDataContextValue {
   organizations: Organization[];
-  licenseRequests: LicenseRequest[];
+  licenses: License[];
   orgAdmins: OrgAdmin[];
   addOrganization: (data: NewOrgFormData) => void;
   toggleSuspendOrganization: (id: string) => void;
   deleteOrganization: (id: string) => void;
-  approveLicenseRequest: (id: string) => void;
-  rejectLicenseRequest: (id: string) => void;
+  issueLicense: (organizationId: string, billingCycle: BillingCycle) => void;
+  renewLicense: (id: string, billingCycle: BillingCycle) => void;
+  modifyLicense: (id: string, updates: { tier: LicenseTier; billingCycle: BillingCycle }) => void;
+  toggleCancelLicense: (id: string) => void;
   toggleSuspendAdmin: (id: string) => void;
   removeAdmin: (id: string) => void;
 }
@@ -43,77 +67,128 @@ interface AppDataContextValue {
 const AppDataContext = createContext<AppDataContextValue | null>(null);
 
 const initialOrganizations: Organization[] = [
-  { id: "1", name: "Acme Corp",           plan: "Yearly",    status: "Active",         renewalDate: "Sep 12, 2026" },
-  { id: "2", name: "Nimbus Retail",        plan: "Monthly",   status: "Trial",          renewalDate: "Aug 29, 2026" },
-  { id: "3", name: "Bluepeak Logistics",   plan: "Quarterly", status: "Pending Renewal", renewalDate: "Aug 27, 2026" },
-  { id: "4", name: "Orbit Solutions",      plan: "Monthly",   status: "Suspended",      renewalDate: "Jul 15, 2026" },
-  { id: "5", name: "Vertex Manufacturing", plan: "Yearly",    status: "Active",         renewalDate: "Nov 3, 2026"  },
+  {
+    id: "1", name: "Acme Corp", slug: "acme-corp", logoUrl: "",
+    orgAddress: "Detroit, Michigan, USA",
+    adminName: "Sarah Chen", adminPhone: "+1 313 555 0142", email: "admin@acmecorp.com",
+    plan: "Yearly", status: "Active", timezone: "America/New_York",
+    maxUsers: 500, workingDays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"], workingHours: 8,
+    renewalDate: "Sep 12, 2026",
+  },
+  {
+    id: "2", name: "Nimbus Retail", slug: "nimbus-retail", logoUrl: "",
+    orgAddress: "Austin, Texas, USA",
+    adminName: "Priya Nair", adminPhone: "+1 512 555 0198", email: "priya.nair@nimbusretail.com",
+    plan: "Monthly", status: "Trial", timezone: "America/New_York",
+    maxUsers: 200, workingDays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"], workingHours: 8,
+    renewalDate: "Aug 29, 2026",
+  },
+  {
+    id: "3", name: "Bluepeak Logistics", slug: "bluepeak-logistics", logoUrl: "",
+    orgAddress: "Rotterdam, Netherlands",
+    adminName: "Tom Reilly", adminPhone: "+31 6 5555 0123", email: "tom.reilly@bluepeaklogistics.com",
+    plan: "Quarterly", status: "Pending Renewal", timezone: "Europe/London",
+    maxUsers: 300, workingDays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"], workingHours: 9,
+    renewalDate: "Aug 27, 2026",
+  },
+  {
+    id: "4", name: "Orbit Solutions", slug: "orbit-solutions", logoUrl: "",
+    orgAddress: "Singapore",
+    adminName: "James Patel", adminPhone: "+65 9555 0187", email: "james.patel@orbitsolutions.com",
+    plan: "Monthly", status: "Suspended", timezone: "Asia/Singapore",
+    maxUsers: 150, workingDays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"], workingHours: 8,
+    renewalDate: "Jul 15, 2026",
+  },
+  {
+    id: "5", name: "Vertex Manufacturing", slug: "vertex-manufacturing", logoUrl: "",
+    orgAddress: "Pune, Maharashtra, India",
+    adminName: "Maria Gomez", adminPhone: "+91 98765 43210", email: "maria.gomez@vertexmfg.com",
+    plan: "Yearly", status: "Active", timezone: "Asia/Kolkata",
+    maxUsers: 1000, workingDays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"], workingHours: 9,
+    renewalDate: "Nov 3, 2026",
+  },
 ];
 
-const initialLicenseRequests: LicenseRequest[] = [
-  { id: "lr1", organizationId: "1", organizationName: "Acme Corp",      plan: "Yearly",  requestDate: "Sep 1, 2025",  status: "Approved", decisionDate: "Sep 3, 2025", expiryDate: "Sep 12, 2026" },
-  { id: "lr2", organizationId: "2", organizationName: "Nimbus Retail",  plan: "Monthly", requestDate: "Aug 20, 2026", status: "Pending" },
-  { id: "lr3", organizationId: "4", organizationName: "Orbit Solutions", plan: "Monthly", requestDate: "Jun 10, 2026", status: "Rejected", decisionDate: "Jun 12, 2026" },
+// Seeded for the first 4 orgs — Vertex Manufacturing (id "5") is left
+// deliberately unlicensed, so "Issue New License" has something to show
+// out of the box, same as any freshly created organization would.
+const initialLicenses: License[] = [
+  {
+    id: "lic-1", organizationId: "1", organizationName: "Acme Corp",
+    tier: "Evolution", billingCycle: "Yearly",
+    startedAt: "2025-09-12T00:00:00.000Z", expiresAt: "2026-09-12T23:59:59.000Z",
+    cancelled: false,
+  },
+  {
+    id: "lic-2", organizationId: "2", organizationName: "Nimbus Retail",
+    tier: "Evolution", billingCycle: "Monthly",
+    startedAt: "2026-07-29T00:00:00.000Z", expiresAt: "2026-08-29T23:59:59.000Z",
+    cancelled: false,
+  },
+  {
+    id: "lic-3", organizationId: "3", organizationName: "Bluepeak Logistics",
+    tier: "Evolution", billingCycle: "Quarterly",
+    startedAt: "2026-05-27T00:00:00.000Z", expiresAt: "2026-08-27T23:59:59.000Z",
+    cancelled: false,
+  },
+  {
+    id: "lic-4", organizationId: "4", organizationName: "Orbit Solutions",
+    tier: "Evolution", billingCycle: "Monthly",
+    startedAt: "2026-06-15T00:00:00.000Z", expiresAt: "2026-07-15T23:59:59.000Z",
+    cancelled: true,
+  },
 ];
 
 const initialOrgAdmins: OrgAdmin[] = [
-  { id: "admin-1", organizationId: "1", organizationName: "Acme Corp",           name: "Sarah Chen",  email: "sarah.chen@acmecorp.com",            status: "Active",    lastActive: "2 hours ago" },
-  { id: "admin-2", organizationId: "2", organizationName: "Nimbus Retail",       name: "Priya Nair",  email: "priya.nair@nimbusretail.com",         status: "Invited",   lastActive: "—" },
-  { id: "admin-3", organizationId: "3", organizationName: "Bluepeak Logistics",  name: "Tom Reilly",  email: "tom.reilly@bluepeaklogistics.com",    status: "Active",    lastActive: "1 day ago" },
-  { id: "admin-4", organizationId: "4", organizationName: "Orbit Solutions",     name: "James Patel", email: "james.patel@orbitsolutions.com",      status: "Suspended", lastActive: "3 weeks ago" },
-  { id: "admin-5", organizationId: "5", organizationName: "Vertex Manufacturing",name: "Maria Gomez", email: "maria.gomez@vertexmfg.com",          status: "Active",    lastActive: "5 hours ago" },
+  { id: "admin-1", organizationId: "1", organizationName: "Acme Corp", name: "Sarah Chen", email: "admin@acmecorp.com", status: "Active", lastActive: "2 hours ago" },
+  { id: "admin-2", organizationId: "2", organizationName: "Nimbus Retail", name: "Priya Nair", email: "priya.nair@nimbusretail.com", status: "Invited", lastActive: "—" },
+  { id: "admin-3", organizationId: "3", organizationName: "Bluepeak Logistics", name: "Tom Reilly", email: "tom.reilly@bluepeaklogistics.com", status: "Active", lastActive: "1 day ago" },
+  { id: "admin-4", organizationId: "4", organizationName: "Orbit Solutions", name: "James Patel", email: "james.patel@orbitsolutions.com", status: "Suspended", lastActive: "3 weeks ago" },
+  { id: "admin-5", organizationId: "5", organizationName: "Vertex Manufacturing", name: "Maria Gomez", email: "maria.gomez@vertexmfg.com", status: "Active", lastActive: "5 hours ago" },
 ];
 
-function formatDate(date: Date): string {
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
-
-function addPlanDuration(date: Date, plan: LicenseRequest["plan"]): Date {
-  const result = new Date(date);
-  if (plan === "Monthly")   result.setMonth(result.getMonth() + 1);
-  else if (plan === "Quarterly") result.setMonth(result.getMonth() + 3);
-  else result.setFullYear(result.getFullYear() + 1);
-  return result;
-}
-
 export function AppDataProvider({ children }: { children: ReactNode }) {
-  const [organizations, setOrganizations]     = useState<Organization[]>(initialOrganizations);
-  const [licenseRequests, setLicenseRequests] = useState<LicenseRequest[]>(initialLicenseRequests);
-  const [orgAdmins, setOrgAdmins]             = useState<OrgAdmin[]>(initialOrgAdmins);
+  const [organizations, setOrganizations] = useState<Organization[]>(initialOrganizations);
+  const [licenses, setLicenses] = useState<License[]>(initialLicenses);
+  const [orgAdmins, setOrgAdmins] = useState<OrgAdmin[]>(initialOrgAdmins);
 
-  // Accepts the full NewOrgFormData from the updated modal
+  // Creating an organization no longer issues a license automatically —
+  // it appears in Organizations, and shows up as an "unlicensed" option in
+  // the License page's "Issue New License" flow until one is issued.
   const addOrganization = (data: NewOrgFormData) => {
     const id = String(Date.now());
 
     const newOrg: Organization = {
       id,
-      name:        data.name,
-      plan:        data.plan,          // kept in context even though form no longer shows it
-      status:      data.status,        // same — defaults to "Trial"
+      name: data.name,
+      slug: data.slug,
+      logoUrl: data.logoUrl,
+      orgAddress: data.orgAddress,
+      adminName: data.adminName,
+      adminPhone: data.adminPhone,
+      email: data.email,
+      plan: data.plan,
+      status: data.status,
+      timezone: data.timezone,
+      maxUsers: data.maxUsers,
+      workingDays: data.workingDays,
+      workingHours: data.workingHours,
       renewalDate: "—",
     };
     setOrganizations((prev) => [newOrg, ...prev]);
 
-    const newRequest: LicenseRequest = {
-      id:               `lr-${id}`,
-      organizationId:   id,
-      organizationName: data.name,
-      plan:             data.plan,
-      requestDate:      formatDate(new Date()),
-      status:           "Pending",
-    };
-    setLicenseRequests((prev) => [newRequest, ...prev]);
-
     const newAdmin: OrgAdmin = {
-      id:               `admin-${id}`,
-      organizationId:   id,
+      id: `admin-${id}`,
+      organizationId: id,
       organizationName: data.name,
-      name:             data.adminName,
-      email:            data.email,
-      status:           "Invited",
-      lastActive:       "—",
+      name: data.adminName,
+      email: data.email,
+      status: "Invited",
+      lastActive: "—",
     };
     setOrgAdmins((prev) => [newAdmin, ...prev]);
+
+    // TODO (future): trigger invite email to data.email once backend exists.
   };
 
   const toggleSuspendOrganization = (id: string) =>
@@ -124,29 +199,63 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const deleteOrganization = (id: string) =>
     setOrganizations((prev) => prev.filter((o) => o.id !== id));
 
-  const approveLicenseRequest = (id: string) => {
-    const request = licenseRequests.find((r) => r.id === id);
-    if (!request) return;
-    const now         = new Date();
-    const decisionDate = formatDate(now);
-    const expiryDate   = formatDate(addPlanDuration(now, request.plan));
-    setLicenseRequests((prev) =>
-      prev.map((r) => r.id === id ? { ...r, status: "Approved", decisionDate, expiryDate } : r)
-    );
+  // Explicit action from the "Issue New License" flow.
+  const issueLicense = (organizationId: string, billingCycle: BillingCycle) => {
+    const org = organizations.find((o) => o.id === organizationId);
+    if (!org) return;
+
+    const now = new Date();
+    const expires = addBillingCycle(now, billingCycle);
+    const expiryDisplay = formatDisplayDate(expires);
+
+    const newLicense: License = {
+      id: `lic-${organizationId}`,
+      organizationId,
+      organizationName: org.name,
+      tier: "Evolution",
+      billingCycle,
+      startedAt: now.toISOString(),
+      expiresAt: expires.toISOString(),
+      cancelled: false,
+    };
+    setLicenses((prev) => [newLicense, ...prev]);
+
     setOrganizations((prev) =>
       prev.map((o) =>
-        o.id === request.organizationId
-          ? { ...o, status: "Active", plan: request.plan, renewalDate: expiryDate }
-          : o
+        o.id === organizationId ? { ...o, status: "Active", plan: billingCycle, renewalDate: expiryDisplay } : o
       )
     );
   };
 
-  const rejectLicenseRequest = (id: string) => {
-    const decisionDate = formatDate(new Date());
-    setLicenseRequests((prev) =>
-      prev.map((r) => r.id === id ? { ...r, status: "Rejected", decisionDate } : r)
+  // Extends expiry by one billing-cycle term from the chosen cycle (which
+  // may differ from the license's current cycle). If lapsed, the new term
+  // starts fresh from today.
+  const renewLicense = (id: string, billingCycle: BillingCycle) => {
+    setLicenses((prev) =>
+      prev.map((lic) => {
+        if (lic.id !== id) return lic;
+        const now = new Date();
+        const currentExpiry = new Date(lic.expiresAt);
+        const isLapsed = lic.cancelled || currentExpiry.getTime() < now.getTime();
+        const baseDate = isLapsed ? now : currentExpiry;
+        const newExpiry = addBillingCycle(baseDate, billingCycle);
+        return {
+          ...lic,
+          billingCycle,
+          cancelled: false,
+          startedAt: isLapsed ? now.toISOString() : lic.startedAt,
+          expiresAt: newExpiry.toISOString(),
+        };
+      })
     );
+  };
+
+  const modifyLicense = (id: string, updates: { tier: LicenseTier; billingCycle: BillingCycle }) => {
+    setLicenses((prev) => prev.map((lic) => (lic.id === id ? { ...lic, ...updates } : lic)));
+  };
+
+  const toggleCancelLicense = (id: string) => {
+    setLicenses((prev) => prev.map((lic) => (lic.id === id ? { ...lic, cancelled: !lic.cancelled } : lic)));
   };
 
   const toggleSuspendAdmin = (id: string) =>
@@ -159,18 +268,17 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     () => ({
-      organizations, licenseRequests, orgAdmins,
+      organizations, licenses, orgAdmins,
       addOrganization, toggleSuspendOrganization, deleteOrganization,
-      approveLicenseRequest, rejectLicenseRequest,
+      issueLicense, renewLicense, modifyLicense, toggleCancelLicense,
       toggleSuspendAdmin, removeAdmin,
     }),
-    [organizations, licenseRequests, orgAdmins]
+    [organizations, licenses, orgAdmins]
   );
 
   return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>;
 }
 
-// This hook intentionally shares the context module with its provider.
 // eslint-disable-next-line react-refresh/only-export-components
 export function useAppData() {
   const ctx = useContext(AppDataContext);

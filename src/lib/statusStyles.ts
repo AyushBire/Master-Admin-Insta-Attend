@@ -15,6 +15,8 @@ export const statusVariantMap: Record<string, StatusVariant> = {
   Snoozed: "warning",
   Resolved: "neutral",
   Open: "success",
+  "Expiring Soon": "warning",
+  Cancelled: "error",
 };
 
 export function statusBadgeClass(status: string): string {

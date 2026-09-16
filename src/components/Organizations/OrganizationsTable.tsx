@@ -1,22 +1,7 @@
 import { Eye, Ban, Trash2, CheckCircle2 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-
-export interface Organization {
-  id: string;
-  name: string;
-  plan: "Monthly" | "Quarterly" | "Yearly";
-  status: "Active" | "Trial" | "Suspended" | "Pending Renewal";
-  renewalDate: string;
-}
-
-const orgAdminMap: Record<string, { name: string; email: string }> = {
-  "1": { name: "Sarah Chen",  email: "sarah.chen@acmecorp.com" },
-  "2": { name: "Priya Nair",  email: "priya.nair@nimbusretail.com" },
-  "3": { name: "Tom Reilly",  email: "tom.reilly@bluepeaklogistics.com" },
-  "4": { name: "James Patel", email: "james.patel@orbitsolutions.com" },
-  "5": { name: "Maria Gomez", email: "maria.gomez@vertexmfg.com" },
-};
+import type { Organization } from "../../context/AppDataContext";
 
 type ActionType = "suspend" | "delete";
 
@@ -75,19 +60,21 @@ export default function OrganizationsTable({
               </tr>
             ) : (
               organizations.map((org) => {
-                const admin = orgAdminMap[org.id] ?? { name: "—", email: "—" };
                 const suspended = org.status === "Suspended";
                 return (
                   <tr key={org.id} className="table-row">
                     <td className="table-cell-primary w-[30%]">{org.name}</td>
-                    <td className="table-cell w-[20%]">{admin.name}</td>
+                    <td className="table-cell w-[20%]">{org.adminName || "—"}</td>
                     <td className="table-cell w-[35%]">
-                      <a href={`mailto:${admin.email}`} className="text-primary hover:underline">
-                        {admin.email}
-                      </a>
+                      {org.email ? (
+                        <a href={`mailto:${org.email}`} className="text-primary hover:underline">
+                          {org.email}
+                        </a>
+                      ) : (
+                        "—"
+                      )}
                     </td>
                     <td className="table-cell w-[15%]">
-                      {/* Centred flex row — aligns with the centred "Actions" heading */}
                       <div className="flex items-center justify-center gap-2">
                         <Link
                           to={`/organizations/${org.id}`}
